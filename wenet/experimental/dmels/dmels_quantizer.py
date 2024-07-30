@@ -21,6 +21,8 @@ def dequantize(discretized_M, codebook):
 
 
 class DmelsQuantizer(torch.nn.Module):
+    """ https://arxiv.org/html/2407.15835v1
+    """
 
     def __init__(self, mel_min: float, mel_max: float, k=4) -> None:
         super().__init__()
@@ -34,3 +36,28 @@ class DmelsQuantizer(torch.nn.Module):
 
     def decode(self, codes: torch.Tensor):
         return dequantize(codes, self.codebook)
+
+
+if __name__ == '__main__':
+    from wenet.experimental.dmels.processor import compute_melspectrogram
+    import torchaudio
+    waveform, sr = torchaudio.load('test.wav')
+    assert sr == 24000
+    mels = compute_melspectrogram({'waveform': waveform})['mel_specgram']
+    print(mels)
+
+    quantizer = DmelsQuantizer(torch.min(mels), torch.max(mels))
+    print(quantizer.codebook)
+
+    tokens = quantizer(mels)
+    print(tokens, tokens.shape)
+
+    mels_gen = quantizer.decode(tokens)
+    print(mels_gen)
+
+    # wav = vocoder.inference(mels)
+    from vocos import Vocos
+
+    vocos = Vocos.from_pretrained("charactr/vocos-mel-24khz")
+    wav = vocos.decode(mels_gen)
+    torchaudio.save('out.new.wav', wav, sample_rate=24000, bits_per_sample=16)
