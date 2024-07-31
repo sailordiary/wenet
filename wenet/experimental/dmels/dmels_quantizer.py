@@ -30,12 +30,18 @@ class DmelsQuantizer(torch.nn.Module):
         self.register_buffer('max', torch.tensor(mel_max, requires_grad=False))
         self.register_buffer('codebook', _create_codebook(mel_min, mel_max, k))
 
+        self.k = k
+
     @torch.no_grad()
     def forward(self, x: torch.Tensor):
         return quantize(x, self.codebook)
 
     def decode(self, codes: torch.Tensor):
         return dequantize(codes, self.codebook)
+
+    @property
+    def bits(self):
+        return 2**self.k
 
 
 if __name__ == '__main__':
