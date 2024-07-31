@@ -17,17 +17,17 @@ def parse_json(elem):
     return dict(obj)
 
 
-def get_dataset(data_list, sample_rate=16000):
+def get_dataset(data_list, mel_conf: dict):
     dataset = TextLineDataPipe(data_list)
 
     dataset = dataset.map(parse_json)
     dataset = dataset.map(processor.decode_wav)
     # TODO: move sample_rate to args
     dataset = dataset.map(
-        partial(processor.resample, resample_rate=sample_rate))
+        partial(processor.resample, resample_rate=mel_conf['sample_rate']))
 
     # TODO: move melspectrogram conf to config
-    dataset = dataset.map(compute_melspectrogram)
+    dataset = dataset.map(partial(compute_melspectrogram, **mel_conf))
 
     return dataset
 
@@ -37,15 +37,24 @@ if __name__ == '__main__':
 
     parser.add_argument('--data_list', type=str, required=True)
     parser.add_argument('--sample_rate', type=int, default=16000)
+    parser.add_argument('--hop_length', type=int, default=160)
+    parser.add_argument('--n_fft', type=int, default=400)
+    parser.add_argument('--n_mels', type=int, default=128)
     parser.add_argument('--output_file', type=str, required=True)
     parser.add_argument("--log_interval", type=int, default=1000)
     args = parser.parse_args()
 
-    dataset = get_dataset(args.data_list, args.sample_rate)
+    mel_conf = {
+        "sample_rate": args.sample_rate,
+        "hop_length": args.hop_length,
+        "n_fft": args.n_fft,
+        "n_mels": args.n_mels,
+    }
+    dataset = get_dataset(args.data_list, mel_conf)
     m = torch.tensor(-1, dtype=torch.float32)
     M = torch.tensor(0, dtype=torch.float32)
     for (i, d) in enumerate(dataset):
-        mel_spec = d['mel_specgram']
+        mel_spec = d['feat']
         m_ = torch.min(mel_spec)
         M_ = torch.max(mel_spec)
 

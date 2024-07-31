@@ -90,7 +90,9 @@ def Dataset(data_type,
         dataset = dataset.map(partial(processor.speed_perturb))
 
     feats_type = conf.get('feats_type', 'fbank')
-    assert feats_type in ['fbank', 'mfcc', 'log_mel_spectrogram']
+    assert feats_type in [
+        'fbank', 'mfcc', 'log_mel_spectrogram', 'dmels_log_spectrogram'
+    ]
     if feats_type == 'fbank':
         fbank_conf = conf.get('fbank_conf', {})
         dataset = dataset.map(partial(processor.compute_fbank, **fbank_conf))
@@ -105,7 +107,7 @@ def Dataset(data_type,
     else:
         from wenet.experimental.dmels.processor import compute_melspectrogram
         assert feats_type == 'dmels_log_mel_spectrogram'
-        log_mel_spectrogram_conf = conf.get('log_dmels_spectrogram_conf', {})
+        log_mel_spectrogram_conf = conf.get('dmels_log_spectrogram_conf', {})
         dataset = dataset.map(
             partial(compute_melspectrogram, **log_mel_spectrogram_conf))
     spec_aug = conf.get('spec_aug', True)
