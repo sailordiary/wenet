@@ -43,6 +43,9 @@ class DmelsAsrModel(ASRModel):
         B, T, _ = speech.shape
         speech_tokens = self.quantizer(speech.transpose(1, 2)).transpose(
             1, 2)  # (B,T,D)
+
+        # TODO(Mddct): span mask, can work with w2vec mask?
+
         embed = self.speech_tokens_embed(speech_tokens)  # (B,T,D,d)
         embed = embed.view(B, T, -1)  # (B, T, Dxd)
         embed = self.speech_linear(embed)  # (B, T, encoder_dim)
