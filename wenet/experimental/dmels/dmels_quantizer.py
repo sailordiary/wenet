@@ -47,8 +47,11 @@ class DmelsQuantizer(torch.nn.Module):
 if __name__ == '__main__':
     from wenet.experimental.dmels.processor import compute_melspectrogram
     import torchaudio
-    waveform, sr = torchaudio.load('test.wav')
-    assert sr == 24000
+    wav_file = 'cat.wav'
+    out_wav_file = 'cat.out.wav'
+    waveform, sr = torchaudio.load(wav_file)
+    waveform = torchaudio.functional.resample(waveform, sr, 24000)
+    sr = 24000
     mels = compute_melspectrogram({'waveform': waveform})['mel_specgram']
     print(mels)
 
@@ -66,4 +69,4 @@ if __name__ == '__main__':
 
     vocos = Vocos.from_pretrained("charactr/vocos-mel-24khz")
     wav = vocos.decode(mels_gen)
-    torchaudio.save('out.new.wav', wav, sample_rate=24000, bits_per_sample=16)
+    torchaudio.save(out_wav_file, wav, sample_rate=24000, bits_per_sample=16)

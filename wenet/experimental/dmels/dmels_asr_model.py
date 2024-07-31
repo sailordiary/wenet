@@ -40,7 +40,7 @@ class DmelsAsrModel(ASRModel):
                 device: torch.device) -> Dict[str, Optional[torch.Tensor]]:
         """Frontend + Encoder + Decoder + Calc loss"""
         speech = batch['feats'].to(device)  # (B, T, D)
-        B, T, D = speech.shape
+        B, T, _ = speech.shape
         speech_tokens = self.quantizer(speech.transpose(1, 2)).transpose(
             1, 2)  # (B,T,D)
         embed = self.speech_tokens_embed(speech_tokens)  # (B,T,D,d)
