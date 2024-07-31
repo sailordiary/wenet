@@ -1,13 +1,16 @@
 import json
 import os
+
 from wenet.experimental.dmels.dmels_asr_model import DmelsAsrModel
 from wenet.experimental.dmels.dmels_quantizer import DmelsQuantizer
 from wenet.utils.checkpoint import load_checkpoint
-from wenet.utils.init_model import WENET_CTC_CLASSES, WENET_DECODER_CLASSES, WENET_ENCODER_CLASSES
+from wenet.utils.init_model import (WENET_CTC_CLASSES, WENET_DECODER_CLASSES,
+                                    WENET_ENCODER_CLASSES)
 
 
 def get_m_M(input_file):
-    obj = json.load(input_file)
+    with open(input_file, 'r') as f:
+        obj = json.load(f)
     return obj['m'], obj['M']
 
 

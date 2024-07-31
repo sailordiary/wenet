@@ -6,6 +6,7 @@ from wenet.experimental.dmels.dmels_quantizer import DmelsQuantizer
 from wenet.transformer.asr_model import ASRModel
 from wenet.transformer.ctc import CTC
 from wenet.transformer.encoder import BaseEncoder
+from wenet.utils.common import IGNORE_ID
 
 
 class DmelsAsrModel(ASRModel):
@@ -17,7 +18,7 @@ class DmelsAsrModel(ASRModel):
                  quantizer: DmelsQuantizer,
                  ctc: CTC,
                  ctc_weight: float = 0.5,
-                 ignore_id: int = ...,
+                 ignore_id: int = IGNORE_ID,
                  reverse_weight: float = 0,
                  lsm_weight: float = 0,
                  length_normalized_loss: bool = False,
@@ -29,11 +30,12 @@ class DmelsAsrModel(ASRModel):
                          apply_non_blank_embedding)
         self.quantizer = quantizer
 
-        bits = self.quantizer.bits()
+        bits = self.quantizer.bits
         self.speech_tokens_embed = torch.nn.Embedding(
             bits,
             # TODO: change later
             32)
+        # TODO(Mddct): why encoder.output_size?
         self.speech_linear = torch.nn.Linear(32 * bits, encoder.output_size())
 
     def forward(self, batch: dict,

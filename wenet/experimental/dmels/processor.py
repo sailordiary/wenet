@@ -9,7 +9,8 @@ def compute_melspectrogram(sample,
                            n_mels=100,
                            center=False,
                            power=1):
-    waveform = sample['waveform']
+    waveform = sample['wav']
+    assert waveform.size(0) == 1
     specgram = torchaudio.functional.spectrogram(
         waveform,
         hop_length=hop_length,
@@ -33,7 +34,8 @@ def compute_melspectrogram(sample,
     mel_specgram = torch.matmul(specgram.transpose(-1, -2),
                                 mel_scale).transpose(-1, -2)
     # sample['mel_specgram'] = mel_specgram
-    sample['feat'] = torch.log(torch.clip(mel_specgram, min=1e-5))
+    mel_specgram = torch.log(torch.clip(mel_specgram, min=1e-5))
+    sample['feat'] = mel_specgram.transpose(1, 2).squeeze(0)
     return sample
 
 

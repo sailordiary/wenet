@@ -52,9 +52,11 @@ if __name__ == '__main__':
     waveform, sr = torchaudio.load(wav_file)
     waveform = torchaudio.functional.resample(waveform, sr, 24000)
     sr = 24000
-    mels = compute_melspectrogram({'waveform': waveform})['mel_specgram']
+    mels = compute_melspectrogram({'wav': waveform})['feat']
+    print(mels.shape)
     print(mels)
 
+    print('min:', torch.min(mels), 'max:', torch.max(mels))
     quantizer = DmelsQuantizer(torch.min(mels), torch.max(mels))
     print(quantizer.codebook)
 
