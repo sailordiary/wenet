@@ -33,7 +33,7 @@ def compute_melspectrogram(sample,
     mel_specgram = torch.matmul(specgram.transpose(-1, -2),
                                 mel_scale).transpose(-1, -2)
     # sample['mel_specgram'] = mel_specgram
-    sample['mel_specgram'] = torch.log(torch.clip(mel_specgram, min=1e-5))
+    sample['feat'] = torch.log(torch.clip(mel_specgram, min=1e-5))
     return sample
 
 

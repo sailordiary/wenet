@@ -102,6 +102,12 @@ def Dataset(data_type,
         dataset = dataset.map(
             partial(processor.compute_log_mel_spectrogram,
                     **log_mel_spectrogram_conf))
+    else:
+        from wenet.experimental.dmels.processor import compute_melspectrogram
+        assert feats_type == 'dmels_log_mel_spectrogram'
+        log_mel_spectrogram_conf = conf.get('log_dmels_spectrogram_conf', {})
+        dataset = dataset.map(
+            partial(compute_melspectrogram, **log_mel_spectrogram_conf))
     spec_aug = conf.get('spec_aug', True)
     spec_sub = conf.get('spec_sub', False)
     spec_trim = conf.get('spec_trim', False)
