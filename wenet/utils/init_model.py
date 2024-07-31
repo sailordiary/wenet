@@ -87,8 +87,7 @@ WENET_MODEL_CLASSES = {
 }
 
 
-def init_model(args, configs):
-
+def init_asr_model(args, configs):
     # TODO(xcsong): Forcefully read the 'cmvn' attribute.
     if configs.get('cmvn', None) == 'global_cmvn':
         mean, istd = load_cmvn(configs['cmvn_conf']['cmvn_file'],
@@ -191,3 +190,10 @@ def init_model(args, configs):
         model.decoder.tie_or_clone_weights(jit_mode=args.jit)
 
     return model, configs
+
+
+def init_model(args, configs):
+    # return init_asr_model(args, configs)
+    # TODO(Mddct): refine later
+    from wenet.experimental.dmels.init_dmels_model import init_dmels_asr_model
+    return init_dmels_asr_model(args, configs)
