@@ -50,6 +50,7 @@ if __name__ == '__main__':
     wav_file = 'cat.wav'
     out_wav_file = 'cat.out.wav'
     waveform, sr = torchaudio.load(wav_file)
+    waveform = waveform[:1]
     waveform = torchaudio.functional.resample(waveform, sr, 24000)
     sr = 24000
     mels = compute_melspectrogram({'wav': waveform})['feat']
