@@ -1,0 +1,101 @@
+# network architecture
+# network architecture
+# encoder related
+input_dim: 80
+encoder: conformer
+encoder_conf:
+    output_size: 1024    # dimension of attention
+    attention_heads: 8
+    linear_units: 4096  # the number of units of position-wise feed forward
+    num_blocks: 24      # the number of encoder blocks
+    dropout_rate: 0.1
+    positional_dropout_rate: 0.1
+    attention_dropout_rate: 0.0
+    input_layer: conv2d # encoder input type, you can chose conv2d, conv2d6 and conv2d8
+    normalize_before: true
+    cnn_module_kernel: 15
+    use_cnn_module: True
+    use_sdpa: false
+    gradient_checkpointing: false
+    pos_enc_layer_type: rope_pos
+    activation_type: 'gelu'
+    mlp_type: 'gated'
+    query_bias: false
+    key_bias: false
+    cnn_module_norm: rms_norm
+    value_bias: false
+    layer_norm_type: rms_norm
+    norm_eps: 1.0e-6
+    mlp_bias: false
+    selfattention_layer_type: rope_abs_selfattn
+    conv_bias: false
+    final_norm: false
+
+cmvn: global_cmvn # global_cmvn
+cmvn_conf:
+  cmvn_file: '/mnt/afs_f/zhoudinghao/maga/conf/global_cmvn'  # or cmvn path
+  is_json_cmvn: true
+
+# hybrid CTC/attention
+model: bestrq_model
+model_conf:
+    num_mel_bins:  80
+    embedding_dim:  16
+    num_embeddings:  8192
+    num_codebooks:  8
+    mask_prob:  0.2
+    mask_length: 10
+    min_masks:  1
+    features_regularization_weight:  0.00
+
+dataset: ssl
+dataset_conf:
+    filter_conf:
+        max_length: 40960
+        min_length: 100
+        token_max_length: 200
+        token_min_length: 1
+    resample_conf:
+        resample_rate: 16000
+    speed_perturb: false
+    fbank_conf:
+        num_mel_bins: 80
+        frame_shift: 10
+        frame_length: 25
+        dither: 0.1
+    spec_aug: false
+    spec_aug_conf:
+        num_t_mask: 2
+        num_f_mask: 2
+        max_t: 50
+        max_f: 10
+    shuffle: true
+    shuffle_conf:
+        shuffle_size: 1500
+    sort: true
+    sort_conf:
+        sort_size: 500  # sort_size should be less than shuffle_size
+    batch_conf:
+            batch_type: 'dynamic'
+            max_frames_in_batch: 50000
+            # batch_type: 'bucket'
+            # bucket_boundaries:  [500, 1000, 1500]
+            # batch_type: 'static'
+            # batch_size: 10
+            # batch_type: 'bucket' # static or bucket or dynamic
+            #  bucket_batch_sizes: [128, 64, 32, 16]
+            # bucket_batch_sizes: [32, 32, 32, 16]
+
+grad_clip: 1.0
+accum_grad: 1
+max_epoch: 240
+log_interval: 100
+save_interval: 5000
+
+optim: adamw
+optim_conf:
+    lr: 3.0e-4
+    weight_decay: 0.1
+scheduler: warmuplr     # pytorch v1.1.0+ required
+scheduler_conf:
+    warmup_steps: 25000

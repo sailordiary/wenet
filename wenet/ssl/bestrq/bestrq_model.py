@@ -113,7 +113,7 @@ class BestRQModel(torch.nn.Module):
             codebook.append(cb)
         codebook = torch.stack(codebook, dim=0)
         codebook = torch.nn.functional.normalize(self.codebook, dim=1, p=2)
-        self.register_buffer("embeddings", codebook)
+        self.register_buffer("embeddings", codebook.transpose(0, 1))
 
     def forward(
         self,
@@ -240,7 +240,7 @@ class BestRQModel(torch.nn.Module):
 
     def _nearest_embedding_idx(self, xs: torch.Tensor) -> torch.Tensor:
         xs = torch.matmul(xs, self.projection.to(xs.device))
-        xs = xs / (xs.norm(dim=-1, p=2, keepdim=True) + 1e-8)
+        xs = torch.nn.functional.normalize(xs, dim=-1, p=2.0)
         codebooks = self.embeddings
         B, T, C = xs.size()
         xs_flatten = xs.view(B * T, C)
