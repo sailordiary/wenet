@@ -1,11 +1,8 @@
-import math
 from typing import Dict, Optional, Tuple
-import torch
 
+import torch
 from wenet.ssl.bestrq.mask import compute_mask_indices_v2
-from wenet.utils.mask import make_non_pad_mask, make_pad_mask
-from wenet.transformer.attention import RelPositionMultiHeadedAttention
-from wenet.transformer.encoder_layer import ConformerEncoderLayer
+from wenet.utils.mask import make_pad_mask
 
 
 def quantize_vector(latent: torch.Tensor, codebook: torch.Tensor):
@@ -96,7 +93,8 @@ class BestRQModel(torch.nn.Module):
         # stack input: eg: fbank
         self.stack_frames = self.encoder.embed.right_context + 1
         self.stride = self.encoder.embed.subsampling_rate
-        input_dim = num_mel_bins * self.stride
+        # input_dim = num_mel_bins * self.stride
+        input_dim = num_mel_bins * self.stack_frames
 
         # random projectoin
         self.projection = torch.nn.parameter.Parameter(
@@ -108,52 +106,14 @@ class BestRQModel(torch.nn.Module):
         # codebooks
         # [num_embeddings, num_codebooks, num_embeddings] means
         # [C, G, D] see quantize_vector
-        self.embeddings = torch.nn.parameter.Parameter(
-            torch.empty(num_embeddings, self.num_codebooks, embedding_dim),
-            requires_grad=False,
-        )
-        torch.nn.init.normal_(self.embeddings)
-        self.embeddings /= (self.embeddings.norm(dim=-1, p=2, keepdim=True) +
-                            1e-8)
-
-        # force reset encoder papameter
-        self.reset_encoder_parameter()
-
-    def reset_encoder_parameter(self):
-
-        def _reset_parameter(module: torch.nn.Module):
-            if isinstance(module, torch.nn.Linear):
-                torch.nn.init.trunc_normal_(module.weight.data,
-                                            mean=0.0,
-                                            std=0.02)
-                if module.bias is not None:
-                    module.bias.data.zero_()
-            elif isinstance(module, torch.nn.Conv1d):
-                torch.nn.init.kaiming_normal_(module.weight)
-                if module.bias is not None:
-                    k = math.sqrt(module.groups /
-                                  (module.in_channels * module.kernel_size[0]))
-                    torch.nn.init.uniform_(module.bias, a=-k, b=k)
-            elif isinstance(module, torch.Tensor):
-                torch.nn.init.trunc_normal_(module)
-            else:
-                raise NotImplementedError("other module not support now")
-
-        encoders = self.encoder.encoders
-        for _, layer in enumerate(encoders):
-            self_attn = layer.self_attn
-            _reset_parameter(self_attn.linear_q)
-            _reset_parameter(self_attn.linear_k)
-            _reset_parameter(self_attn.linear_v)
-            _reset_parameter(self_attn.linear_out)
-            if isinstance(self_attn, RelPositionMultiHeadedAttention):
-                _reset_parameter(self_attn.pos_bias_u)
-                _reset_parameter(self_attn.pos_bias_v)
-            if isinstance(layer, ConformerEncoderLayer):
-                conv1, conv2 = (layer.conv_module.pointwise_conv1,
-                                layer.conv_module.depthwise_conv)
-                _reset_parameter(conv1)
-                _reset_parameter(conv2)
+        codebook = []
+        for _ in range(num_codebooks):
+            cb = torch.empty(num_embeddings, embedding_dim)
+            torch.nn.init.normal_(cb)
+            codebook.append(cb)
+        codebook = torch.stack(codebook, dim=0)
+        codebook = torch.nn.functional.normalize(self.codebook, dim=1, p=2)
+        self.register_buffer("embeddings", codebook)
 
     def forward(
         self,
@@ -172,7 +132,7 @@ class BestRQModel(torch.nn.Module):
         xs, code_ids_mask = self._apply_mask_signal(xs, xs_lens)
 
         # 2.0 stack fbank
-        unmasked_xs = self._stack_features(input, xs_lens)
+        unmasked_xs = self._stack_features(input)
         masked_xs = xs
 
         # 2.1 get nearest embedding
@@ -233,6 +193,7 @@ class BestRQModel(torch.nn.Module):
                                         self.mask_length,
                                         min_masks=self.min_masks,
                                         device=device)
+
         # calc signal mask
         subsampling_mask = masks
         bool_stride_mask = torch.ones_like(padding_mask_stride, device=device)
@@ -254,27 +215,17 @@ class BestRQModel(torch.nn.Module):
         xs = torch.where(masks_expand, mask_emb, input)
         return xs, subsampling_mask
 
-    def _stack_features(self, input: torch.Tensor,
-                        input_lens: torch.Tensor) -> torch.Tensor:
+    def _stack_features(
+        self,
+        input: torch.Tensor,
+    ) -> torch.Tensor:
 
-        stack_input = input.unfold(1, size=self.stride, step=self.stride)
+        stack_input = input.unfold(1, size=self.stack_frames, step=self.stride)
         stack_input = stack_input.transpose(-1, -2)
         b, n, f, d = stack_input.size()
         stack_input = stack_input.reshape(b, n, f * d)
 
-        # NOTE(Mddct): important!!!
-        # norm stack features
-        mask = make_non_pad_mask(input_lens)
-        stack_mask = mask.unfold(1, size=self.stride, step=self.stride)
-        stack_mask, _ = torch.min(stack_mask, dim=-1)
-
-        stack_input = stack_input * stack_mask.unsqueeze(2)
-        mean = stack_input.sum(1, keepdim=True) / stack_mask.sum(
-            dim=1, keepdim=True).unsqueeze(1)
-        std = torch.sqrt(((stack_input - mean)**2).sum(dim=1, keepdim=True) /
-                         stack_mask.sum(dim=1, keepdim=True).unsqueeze(1))
-        norm_stack_input = (stack_input - mean) / (std + 1e-5)
-        return norm_stack_input
+        return stack_input
 
     def _compute_loss(self, input: torch.Tensor, target: torch.Tensor,
                       mask: torch.Tensor) -> torch.Tensor:
